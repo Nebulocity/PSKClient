@@ -726,3 +726,20 @@ function PSKClient:DebouncedRefreshLootList()
         PSKClient:RefreshLootList()
     end)
 end
+
+----------------------------------------------
+-- Announce to party/raid 
+----------------------------------------------
+
+function PSKClient:Announce(message)
+    local playerName = UnitName("player")
+
+    if IsInRaid() then
+        SendChatMessage(message, "RAID")
+    elseif IsInGroup() then
+        SendChatMessage(message, "PARTY")
+    else
+        SendChatMessage(message, "WHISPER", nil, playerName)
+    end
+	
+end

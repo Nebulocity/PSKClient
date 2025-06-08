@@ -24,6 +24,7 @@ if ldb then
     local f = CreateFrame("Frame")
     f:RegisterEvent("PLAYER_LOGIN")
     f:SetScript("OnEvent", function()
+		
         PSKClientMinimapDB = PSKClientMinimapDB or {}
         if icon then
             icon:Register("PSKClient", dataObject, PSKClientMinimapDB)

@@ -140,3 +140,106 @@ StaticPopupDialogs["PSK_CONFIRM_CLEAR_LISTS"] = {
     hideOnEscape = true,
     preferredIndex = 3
 }
+
+
+-------------------------------------------------
+-- Register addon message handler
+-------------------------------------------------
+
+local chunkBuffer = {}
+
+C_ChatInfo.RegisterAddonMessagePrefix("PSK_SYNC")
+
+local f = CreateFrame("Frame")
+f:RegisterEvent("CHAT_MSG_ADDON")
+
+-- print("[PSK Client] Addon message handler initialized")
+
+f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
+
+    if prefix ~= "PSK_SYNC" then return end
+	
+	-- print("[PSK Client] Raw incoming addon message:", message)
+
+    local msgType, index, total, chunk = strmatch(message, "^(.-)@@(%d+)@@(%d+)@@(.+)$")
+	if not msgType or not index or not total or not chunk then
+		-- print("[PSK Client] Malformed message dropped:", message)
+		return
+	end
+
+
+    index = tonumber(index)
+    total = tonumber(total)
+	
+    if not msgType or not index or not total or not chunk then
+        -- print("[PSK Client] Failed to parse message:", message)
+        return
+    end
+
+    local key = sender .. "||" .. msgType
+    chunkBuffer[key] = chunkBuffer[key] or {}
+    chunkBuffer[key][index] = chunk
+
+	local receivedChunks = 0
+	for i = 1, total do
+		if chunkBuffer[key][i] then receivedChunks = receivedChunks + 1 end
+	end
+	-- print(string.format("[PSK Client] %s: %d/%d chunks received so far", msgType, receivedChunks, total))
+
+
+	if msgType == "UPDATE_LOOT" then
+		-- print(string.format("[PSK Client] Received chunk %d/%d for %s from %s", index, total, msgType, sender))
+	end
+
+    -- Check if all parts are received
+    local assembled = true
+    for i = 1, total do
+        if not chunkBuffer[key][i] then
+            assembled = false
+            break
+        end
+    end
+
+    if not assembled then return end
+
+    local orderedChunks = {}
+    for i = 1, total do
+        table.insert(orderedChunks, chunkBuffer[key][i] or "")
+    end
+
+    local fullEncoded = table.concat(orderedChunks)
+	-- print(string.format("[PSK Client] Assembled %s (%d chunks, length %d)", msgType, total, #fullEncoded))
+
+    chunkBuffer[key] = nil  -- Clear buffer for this sender/message combo
+
+    local LibSerialize = LibStub("LibSerialize")
+    local LibDeflate = LibStub("LibDeflate")
+
+    local compressed = LibDeflate:DecodeForPrint(fullEncoded)
+    if not compressed then return end
+
+    local serialized = LibDeflate:DecompressZlib(compressed)
+    if not serialized then return end
+
+    local success, data = LibSerialize:Deserialize(serialized)
+    if not success then return end
+
+	
+    -- Dispatch based on message type
+    if msgType == "UPDATE_MAIN_LIST" then
+        PSKClientDB.MainList = data
+        PSKClient:RefreshPlayerLists()
+    elseif msgType == "UPDATE_TIER_LIST" then
+        PSKClientDB.TierList = data
+        PSKClient:RefreshPlayerLists()
+    elseif msgType == "UPDATE_LOOT" then
+        print("[PSK Client] UPDATE_LOOT payload decoded:", type(data), "#entries:", #data or 0)
+        PSKClientDB.LootDrops = data
+        PSKClient:RefreshLootList()
+    elseif msgType == "UPDATE_BIDS" then
+        PSKClient.BidEntries = data
+        PSKClient:RefreshBidList()
+    end
+end)
+
+
