@@ -1,0 +1,25 @@
+## Interface: 11505
+## Title: PSK Client - Perchance Some Loot?
+## Notes: PSK Client for loot tracking and player roster for Perchance (Nightslayer-US)
+## Version: 1.0
+## Author: Taurbucks
+## SavedVariables: PSKClientGlobal, PSKClientDB, PSKClientBidList, PSKClientMinimapDB
+## Dependencies
+## OptionalDeps: Blizzard_UIParent, Blizzard_CompactRaidFrames, Blizzard_RaidUI
+
+# External Libraries
+Libs\LibStub\LibStub.lua
+Libs\LibSerialize\LibSerialize.lua
+Libs\LibDeflate\LibDeflate.lua
+
+media\icon.tga
+
+clientCore.lua
+
+clientUtils.lua
+
+clientUI.lua
+
+clientButtons.lua
+
+clientMinimap.lua
