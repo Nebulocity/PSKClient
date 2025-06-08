@@ -100,8 +100,26 @@ local slashFrame = CreateFrame("Frame")
 slashFrame:RegisterEvent("PLAYER_LOGIN")
 
 slashFrame:SetScript("OnEvent", function()
-    SLASH_PSKCLIENT1 = "/pskclient"
-    SlashCmdList["PSKCLIENT"] = function()
+	-- Hard reset all saved and in-memory data
+	wipe(PSKClientDB)
+
+	-- Reinitialize required fields
+	PSKClientDB = {
+		MainList = {},
+		TierList = {},
+		LootDrops = {}
+	}
+	PSKClient.BidEntries = {}
+	PSKClient.LootDrops = {}
+	PSKClient.CurrentList = "Main"
+	PSKClient.BiddingOpen = false
+	PSKClient.RollResults = {}
+	PSKClient.ManualCancel = false
+	PSKClient.BidTimers = {}
+
+	-- Setup slash command
+	SLASH_PSKCLIENT1 = "/pskclient"
+	SlashCmdList["PSKCLIENT"] = function()
 		if PSKClient and PSKClient.MainFrame then
 			if PSKClient.MainFrame:IsShown() then
 				PSKClient.MainFrame:Hide()
@@ -110,8 +128,8 @@ slashFrame:SetScript("OnEvent", function()
 			end
 		end
 	end
-
 end)
+
 
 
 ------------------------------------------
@@ -146,33 +164,33 @@ StaticPopupDialogs["PSK_CONFIRM_CLEAR_LISTS"] = {
 -- Register addon message handler
 -------------------------------------------------
 
+
 local chunkBuffer = {}
+-- local receivedBidUpdate = false
 
 C_ChatInfo.RegisterAddonMessagePrefix("PSK_SYNC")
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("CHAT_MSG_ADDON")
 
--- print("[PSK Client] Addon message handler initialized")
+print("[PSK Client] Addon message handler initialized")
 
 f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
 
     if prefix ~= "PSK_SYNC" then return end
 	
-	-- print("[PSK Client] Raw incoming addon message:", message)
-
     local msgType, index, total, chunk = strmatch(message, "^(.-)@@(%d+)@@(%d+)@@(.+)$")
+	
 	if not msgType or not index or not total or not chunk then
-		-- print("[PSK Client] Malformed message dropped:", message)
+		print("[PSK Client] Malformed message dropped:", message)
 		return
 	end
-
 
     index = tonumber(index)
     total = tonumber(total)
 	
     if not msgType or not index or not total or not chunk then
-        -- print("[PSK Client] Failed to parse message:", message)
+        print("[PSK Client] Failed to parse message:", message)
         return
     end
 
@@ -184,12 +202,11 @@ f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
 	for i = 1, total do
 		if chunkBuffer[key][i] then receivedChunks = receivedChunks + 1 end
 	end
+	
 	-- print(string.format("[PSK Client] %s: %d/%d chunks received so far", msgType, receivedChunks, total))
-
-
-	if msgType == "UPDATE_LOOT" then
+	-- if msgType == "UPDATE_LOOT" then
 		-- print(string.format("[PSK Client] Received chunk %d/%d for %s from %s", index, total, msgType, sender))
-	end
+	-- end
 
     -- Check if all parts are received
     local assembled = true
@@ -200,6 +217,11 @@ f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
         end
     end
 
+	-- if msgType == "UPDATE_LOOT" then
+		-- print(string.format("[PSK Client] Received chunk %d/%d for UPDATE_LOOT from %s", index, total, sender))
+	-- end
+
+
     if not assembled then return end
 
     local orderedChunks = {}
@@ -208,7 +230,6 @@ f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
     end
 
     local fullEncoded = table.concat(orderedChunks)
-	-- print(string.format("[PSK Client] Assembled %s (%d chunks, length %d)", msgType, total, #fullEncoded))
 
     chunkBuffer[key] = nil  -- Clear buffer for this sender/message combo
 
@@ -224,22 +245,51 @@ f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
     local success, data = LibSerialize:Deserialize(serialized)
     if not success then return end
 
+	-- print("[PSK Client] Final msgType:", "[" .. tostring(msgType) .. "]")
 	
     -- Dispatch based on message type
     if msgType == "UPDATE_MAIN_LIST" then
-        PSKClientDB.MainList = data
-        PSKClient:RefreshPlayerLists()
+		-- print(string.format("[PSK Client] Assembled %s (%d chunks, length %d)", msgType, total, #fullEncoded))
+        PSKClientDB.MainList = {}
+		PSKClientDB.MainList = data
+		PSKClient:RefreshPlayerLists()
+		
     elseif msgType == "UPDATE_TIER_LIST" then
-        PSKClientDB.TierList = data
-        PSKClient:RefreshPlayerLists()
+		-- print(string.format("[PSK Client] Assembled %s (%d chunks, length %d)", msgType, total, #fullEncoded))
+        PSKClientDB.TierList = {}
+		PSKClientDB.TierList = data
+		PSKClient:RefreshPlayerLists()
+		
     elseif msgType == "UPDATE_LOOT" then
-        print("[PSK Client] UPDATE_LOOT payload decoded:", type(data), "#entries:", #data or 0)
-        PSKClientDB.LootDrops = data
-        PSKClient:RefreshLootList()
+	    -- print(string.format("[PSK Client] Received chunk %d/%d for %s from %s", index, total, msgType, sender))
+		PSKClientDB.LootDrops = {}
+		PSKClientDB.LootDrops = data
+		PSKClient:RefreshLootList()
+
     elseif msgType == "UPDATE_BIDS" then
-        PSKClient.BidEntries = data
-        PSKClient:RefreshBidList()
-    end
+		
+		PSKClientDB.BidEntries = {}  -- wipe first
+		
+		local count = type(data) == "table" and #data or 0
+		
+		-- print(string.format("[PSK Client] UPDATE_BIDS payload decoded: %s, #entries: %d", type(data), count))
+		
+		if type(data) ~= "table" or #data == 0 then
+			-- print("[PSK Client] UPDATE_BIDS ignored: empty payload")
+			PSKClientDB.BidEntries = {} 
+			PSKClient.BidEntries = {} 
+			PSKClient:RefreshBidList()
+			return
+		else
+			for i, entry in ipairs(data) do
+				-- print(string.format("  %d. %s (%s)", i, entry.name or "?", entry.class or "?"))
+			end
+			
+			PSKClientDB.BidEntries = data
+			PSKClient.BidEntries = data 
+			PSKClient:RefreshBidList()
+		end	end
+
 end)
 
 

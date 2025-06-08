@@ -106,7 +106,6 @@ function PSKClient:RefreshLootList()
 
 	if not PSKClientDB or not PSKClientDB.LootDrops then return end
 
-
     local scrollChild = PSKClient.ScrollChildren.Loot
     local header = PSKClient.Headers.Loot
     if not scrollChild or not header then return end
@@ -203,8 +202,6 @@ function PSKClient:RefreshLootList()
     end
 
     header:SetText("Loot Drops (" .. #PSKClientDB.LootDrops .. ")")
-
-    -- PSKClient:BroadcastUpdate("RefreshLootList")
 end
 
 
@@ -473,7 +470,8 @@ end
 ----------------------------------------
 
 function PSKClient:RefreshBidList()
-    if not PSKClient.BidEntries then return end
+
+    if not PSKClientDB.BidEntries then return end
 
     local scrollChild = PSKClient.ScrollChildren.Bid
     local header = PSKClient.Headers.Bid
@@ -483,7 +481,7 @@ function PSKClient:RefreshBidList()
     PSKClient.RowPool[scrollChild] = PSKClient.RowPool[scrollChild] or {}
     local pool = PSKClient.RowPool[scrollChild]
 
-    local bidCount = #PSKClient.BidEntries
+    local bidCount = #PSKClientDB.BidEntries
     header:SetText("Bids (" .. bidCount .. ")")
 
     -- Wipe visible list
@@ -502,15 +500,18 @@ function PSKClient:RefreshBidList()
 	end
 
 	-- Sort bidders by list position; if not in list, push to end
-	table.sort(PSKClient.BidEntries, function(a, b)
+	table.sort(PSKClientDB.BidEntries, function(a, b)
 		local aIndex = indexMap[a.name] or math.huge
 		local bIndex = indexMap[b.name] or math.huge
 		return aIndex < bIndex
 	end)
 
     local yOffset = -5
-    for index, bidData in ipairs(PSKClient.BidEntries) do
+	
+    for index, bidData in ipairs(PSKClientDB.BidEntries) do
+	
         local row = pool[index]
+		
         if not row then
             row = CreateFrame("Button", nil, scrollChild, "BackdropTemplate")
             row:SetSize(220, 20)
@@ -559,69 +560,22 @@ function PSKClient:RefreshBidList()
             row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             row.nameText:SetPoint("LEFT", row.classIcon, "RIGHT", 4, 0)
         end
-        row.nameText:SetText(bidData.name)
-
-
-        -- Award Button
-        if not row.awardButton then
-            row.awardButton = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-            row.awardButton:SetSize(16, 16)
-            row.awardButton:SetPoint("LEFT", row.nameText, "RIGHT", 30, 0)
-            row.awardButton:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Check")
-            row.awardButton:GetNormalTexture():SetTexCoord(0.2, 0.8, 0.2, 0.8)
-            row.awardButton:SetText("")
-        end
 		
-        local safeIndex = index  -- capture correctly
-
-		row.awardButton:SetScript("OnClick", function(self)
-			local row = self:GetParent()
-			if row and row.bg then
-				row.bg:SetColorTexture(0, 1, 0, 0.4)
-				local pulse = row:CreateAnimationGroup()
-				local fadeOut = pulse:CreateAnimation("Alpha")
-				fadeOut:SetFromAlpha(1)
-				fadeOut:SetToAlpha(0)
-				fadeOut:SetDuration(0.4)
-				fadeOut:SetOrder(1)
-				local fadeIn = pulse:CreateAnimation("Alpha")
-				fadeIn:SetFromAlpha(0)
-				fadeIn:SetToAlpha(1)
-				fadeIn:SetDuration(0.4)
-				fadeIn:SetOrder(2)
-				pulse:SetLooping("NONE")
-				pulse:Play()
-			end
-
-			PSKClient.SelectedPlayer = bidData.name
-			PSKClient:AwardPlayer(safeIndex)
-		end)
+        -- row.nameText:SetText(bidData.name)
+		local listType = bidData.listType or "?"
+		local listPos = bidData.listPosition or "??"
 		
-        row.awardButton:SetScript("OnEnter", function(self)
-            local row = self:GetParent()
-            if row and row.bg then
-                row.bg:SetColorTexture(0.2, 1, 0.2, 0.25)
-                row.bg:Show()
-            end
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Award Loot", 1, 1, 1)
-            GameTooltip:AddLine("Click to award loot to this player.", 0.8, 0.8, 0.8)
-            GameTooltip:Show()
-        end)
-		
-        row.awardButton:SetScript("OnLeave", function(self)
-            local row = self:GetParent()
-            if row and row.bg then
-                row.bg:Hide()
-            end
-            GameTooltip:Hide()
-        end)
+		if listType ~= "?" and lsitPos ~= "??" then 
+			row.nameText:SetText(string.format("%s (#%s in %s)", bidData.name or "?", listPos, listType))
+		else
+			row.nameText:SetText(string.format("%s (roll-off)", bidData.name or "?"))
+		end
 
         yOffset = yOffset - 22
     end
 
     -- Hide unused bid rows
-    for i = #PSKClient.BidEntries + 1, #pool do
+    for i = #PSKClientDB.BidEntries + 1, #pool do
         if pool[i] then pool[i]:Hide() end
     end
 end
