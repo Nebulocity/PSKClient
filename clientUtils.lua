@@ -481,7 +481,7 @@ function PSKClient:RefreshBidList()
     PSKClient.RowPool[scrollChild] = PSKClient.RowPool[scrollChild] or {}
     local pool = PSKClient.RowPool[scrollChild]
 
-    local bidCount = #PSKClientDB.BidEntries
+    local bidCount = #PSKClientDB.BidEntries or 0
     header:SetText("Bids (" .. bidCount .. ")")
 
     -- Wipe visible list

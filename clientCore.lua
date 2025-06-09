@@ -170,12 +170,12 @@ local chunkBuffer = {}
 
 C_ChatInfo.RegisterAddonMessagePrefix("PSK_SYNC")
 
-local f = CreateFrame("Frame")
-f:RegisterEvent("CHAT_MSG_ADDON")
+local syncFrame = CreateFrame("Frame")
+syncFrame:RegisterEvent("CHAT_MSG_ADDON")
 
 print("[PSK Client] Addon message handler initialized")
 
-f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
+syncFrame:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
 
     if prefix ~= "PSK_SYNC" then return end
 	
@@ -290,6 +290,26 @@ f:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
 			PSKClient:RefreshBidList()
 		end	end
 
+end)
+
+
+-------------------------------------------
+-- ACK Master
+-------------------------------------------
+
+C_ChatInfo.RegisterAddonMessagePrefix("PSK_SYNC_PING")
+C_ChatInfo.RegisterAddonMessagePrefix("PSK_SYNC")
+
+local clientName = UnitName("player")
+
+local ackFrame = CreateFrame("Frame")
+ackFrame:RegisterEvent("CHAT_MSG_ADDON")
+
+ackFrame:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
+    if prefix == "PSK_SYNC_PING" and message == "HELLO" then
+        C_ChatInfo.SendAddonMessage("PSK_SYNC_ACK", clientName, "WHISPER", sender)
+        -- print("[PSK Client] Responded to master at:", sender)
+    end
 end)
 
 

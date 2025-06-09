@@ -82,7 +82,7 @@ PSKClient.Headers.Loot = lootHeader
 
 local bidCount = (PSKClient.BidEntries and #PSKClient.BidEntries) or 0
 local bidScroll, bidChild, bidFrame, bidHeader =
-    CreateBorderedScrollFrame("PSKBidScrollFrame", PSKClient.MainFrame, 470, pskTabScrollFrameHeight, "Bids ( .. bidCount .. )", 220)
+    CreateBorderedScrollFrame("PSKBidScrollFrame", PSKClient.MainFrame, 470, pskTabScrollFrameHeight, "Bids (0)", 220)
 PSKClient.ScrollFrames.Bid = bidScroll
 PSKClient.ScrollChildren.Bid = bidChild
 bidHeader:ClearAllPoints()
