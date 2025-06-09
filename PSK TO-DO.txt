@@ -1,2 +1,3 @@
-- Add red/green status ball saying "Connected to loot master" or "no loot master connection found"
-- Deal with multiple loot masters
+- Track and select the best master.
+- Only listen to one master at a time.
+- Connection status light with tooltip and master we're connected to.
