@@ -41,7 +41,7 @@ table.insert(UISpecialFrames, "PSKClientMainFrame")
 
 PSKClient.MainFrame.title = PSKClient.MainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 PSKClient.MainFrame.title:SetPoint("CENTER", PSKClient.MainFrame.TitleBg, "CENTER", 0, 0)
-PSKClient.MainFrame.title:SetText("Perchance PSK - Perchance Some Loot?")
+PSKClient.MainFrame.title:SetText("PSK Client- Perchance Some Loot?")
 
 
 -----------------------------
