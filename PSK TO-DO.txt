@@ -1,3 +1,2 @@
-
-
-
+- Add red/green status ball saying "Connected to loot master" or "no loot master connection found"
+- Deal with multiple loot masters

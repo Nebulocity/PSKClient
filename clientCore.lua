@@ -38,7 +38,8 @@ PSKClient.CurrentList = "Main"
 PSKClient.RollResults = PSKClient.RollResults or {}
 PSKClient.ManualCancel = false
 PSKClient.BidTimers = {}
-
+PSKClient.Connected = false
+PSKClient.LootMasterName = nil
 
 -------------------------------------------
 -- Frame for updating PSK lists on update.
@@ -308,7 +309,10 @@ ackFrame:RegisterEvent("CHAT_MSG_ADDON")
 ackFrame:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
     if prefix == "PSK_SYNC_PING" and message == "HELLO" then
         C_ChatInfo.SendAddonMessage("PSK_SYNC_ACK", clientName, "WHISPER", sender)
-        -- print("[PSK Client] Responded to master at:", sender)
+		PSKClient.Connected = true
+		PSKClient.LootMasterName = sender
+			
+        print("[PSK Client] Responded to master at:", sender)
     end
 end)
 

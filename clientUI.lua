@@ -44,6 +44,46 @@ PSKClient.MainFrame.title:SetPoint("CENTER", PSKClient.MainFrame.TitleBg, "CENTE
 PSKClient.MainFrame.title:SetText("Perchance PSK - Perchance Some Loot?")
 
 
+-----------------------------
+-- Connection indicator
+-----------------------------
+
+local statusText = PSKClient.MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+statusText:SetPoint("TOPLEFT", 245, -70)
+
+local statusDot = PSKClient.MainFrame:CreateTexture(nil, "OVERLAY")
+statusDot:SetSize(12, 12)
+statusDot:SetPoint("LEFT", statusText, "RIGHT", 6, 0)
+
+function PSKClient:UpdateConnectionStatus()
+    if PSKClient.Connected then
+        statusText:SetText("Connected to loot master (" .. (PSKClient.LootMasterName or "Unknown") .. ")")
+        statusDot:SetColorTexture(0, 1, 0, 1) -- green
+    else
+        statusText:SetText("Not connected to loot master")
+        statusDot:SetColorTexture(1, 0, 0, 1) -- red
+    end
+end
+
+local statusUpdater = CreateFrame("Frame")
+local elapsed = 0
+
+statusUpdater:SetScript("OnUpdate", function(_, delta)
+    elapsed = elapsed + delta
+    if elapsed >= 5 then
+        -- Consider disconnected if no ping in last 10 seconds
+        if PSKClient.LastPingTime and (GetTime() - PSKClient.LastPingTime > 10) then
+            PSKClient.Connected = false
+            PSKClient.LootMasterName = nil
+        end
+
+        PSKClient:UpdateConnectionStatus()
+        elapsed = 0
+    end
+end)
+
+
+
 ---------------------------------------------
 -- Set the default selected list (main/tier)
 ---------------------------------------------
