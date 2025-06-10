@@ -158,33 +158,6 @@ function PSKClient:RefreshLootList()
             end)
 
             row:SetScript("OnLeave", GameTooltip_Hide)
-
-            row:SetScript("OnClick", function()
-                if PSKClient.SelectedLootRow and PSKClient.SelectedLootRow.bg then
-                    PSKClient.SelectedLootRow.bg:SetColorTexture(0, 0, 0, 0)
-                end
-                row.bg:SetColorTexture(0.2, 0.6, 1, 0.2)
-                PSKClient.SelectedLootRow = row
-                PSKClient.SelectedItem = row.itemLink
-                PSKClient.SelectedItemData = row.lootData
-                PSKClient.BidButton:Enable()
-
-                local pulse = row:CreateAnimationGroup()
-                local fadeOut = pulse:CreateAnimation("Alpha")
-                fadeOut:SetFromAlpha(1)
-                fadeOut:SetToAlpha(0.4)
-                fadeOut:SetDuration(0.2)
-                fadeOut:SetOrder(1)
-
-                local fadeIn = pulse:CreateAnimation("Alpha")
-                fadeIn:SetFromAlpha(0.4)
-                fadeIn:SetToAlpha(1)
-                fadeIn:SetDuration(0.2)
-                fadeIn:SetOrder(2)
-
-                pulse:SetLooping("NONE")
-                pulse:Play()
-            end)
         end
 
         -- Update visuals each loop
