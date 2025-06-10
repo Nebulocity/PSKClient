@@ -43,28 +43,71 @@ PSKClient.MainFrame.title = PSKClient.MainFrame:CreateFontString(nil, "OVERLAY",
 PSKClient.MainFrame.title:SetPoint("CENTER", PSKClient.MainFrame.TitleBg, "CENTER", 0, 0)
 PSKClient.MainFrame.title:SetText("PSK Client- Perchance Some Loot?")
 
-
 -----------------------------
 -- Connection indicator
 -----------------------------
 
-local statusText = PSKClient.MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-statusText:SetPoint("TOPLEFT", 245, -70)
-
+-- Core dot (initially hidden)
 local statusDot = PSKClient.MainFrame:CreateTexture(nil, "OVERLAY")
-statusDot:SetSize(12, 12)
-statusDot:SetPoint("LEFT", statusText, "RIGHT", 6, 0)
+statusDot:SetSize(32, 32)
+statusDot:SetPoint("TOPLEFT", 0, -30)
+statusDot:SetBlendMode("ADD")
+statusDot:Hide()
 
+-- Pulsing glow (initially hidden)
+local statusGlow = PSKClient.MainFrame:CreateTexture(nil, "ARTWORK")
+statusGlow:SetSize(48, 48)
+statusGlow:SetPoint("CENTER", statusDot, "CENTER")
+statusGlow:SetBlendMode("ADD")
+statusGlow:SetAlpha(0)
+statusGlow:Hide()
+
+-- Text
+local connStatusText = PSKClient.MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+connStatusText:SetPoint("LEFT", statusDot, "RIGHT", -5, 0)
+
+-- Animate the pulsing glow for ALL states
+local pulseTime = 0
+local pulseSpeed = 2
+local pulseFrame = CreateFrame("Frame")
+pulseFrame:SetScript("OnUpdate", function(_, elapsed)
+    pulseTime = pulseTime + elapsed * pulseSpeed
+
+    if statusGlow:IsShown() then
+        local alpha = 0.2 + 0.2 * math.sin(pulseTime) -- 0.0 to 0.4
+        statusGlow:SetAlpha(alpha)
+    end
+end)
+
+-- Update logic
 function PSKClient:UpdateConnectionStatus()
-    if PSKClient.Connected then
-        statusText:SetText("Connected to loot master (" .. (PSKClient.LootMasterName or "Unknown") .. ")")
-        statusDot:SetColorTexture(0, 1, 0, 1) -- green
+    local connected = PSKClient.Connected
+    local seen = next(PSKClient.SeenMasters)
+
+    if connected then
+        connStatusText:SetText("Connected to Loot Master: " .. (PSKClient.LootMasterName or "Unknown"))
+        statusDot:SetTexture("Interface\\AddOns\\PSKClient\\media\\glowing_dot_green.tga")
+        statusGlow:SetTexture("Interface\\AddOns\\PSKClient\\media\\glowing_dot_green.tga")
+        statusDot:Show()
+        statusGlow:Show()
+
+    elseif seen then
+        connStatusText:SetText("Multiple masters detected")
+        statusDot:SetTexture("Interface\\AddOns\\PSKClient\\media\\glowing_dot_orange.tga")
+        statusGlow:SetTexture("Interface\\AddOns\\PSKClient\\media\\glowing_dot_orange.tga")
+        statusDot:Show()
+        statusGlow:Show()
+
     else
-        statusText:SetText("Not connected to loot master")
-        statusDot:SetColorTexture(1, 0, 0, 1) -- red
+        connStatusText:SetText("Not connected to loot master")
+        statusDot:SetTexture("Interface\\AddOns\\PSKClient\\media\\glowing_dot_red.tga")
+        statusGlow:SetTexture("Interface\\AddOns\\PSKClient\\media\\glowing_dot_red.tga")
+        statusDot:Show()
+        statusGlow:Show()
     end
 end
 
+-- Periodic status check
 local statusUpdater = CreateFrame("Frame")
 local elapsed = 0
 
@@ -81,7 +124,6 @@ statusUpdater:SetScript("OnUpdate", function(_, delta)
         elapsed = 0
     end
 end)
-
 
 
 ---------------------------------------------
