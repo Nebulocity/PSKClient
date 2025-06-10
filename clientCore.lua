@@ -40,6 +40,9 @@ PSKClient.ManualCancel = false
 PSKClient.BidTimers = {}
 PSKClient.Connected = false
 PSKClient.LootMasterName = nil
+PSKClient.SeenMasters = {}
+local MASTER_TIMEOUT = 300 -- seconds (5 minutes)
+
 
 -------------------------------------------
 -- Frame for updating PSK lists on update.
@@ -295,25 +298,95 @@ end)
 
 
 -------------------------------------------
--- ACK Master
+-- ACK Best Master
 -------------------------------------------
 
 C_ChatInfo.RegisterAddonMessagePrefix("PSK_SYNC_PING")
 C_ChatInfo.RegisterAddonMessagePrefix("PSK_SYNC")
 
 local clientName = UnitName("player")
+PSKClient.SeenMasters = {} -- [sender] = { lastUpdated = <number>, lastSeen = <timestamp> }
+
+-- Returns the best (most recent) master
+local function GetBestMaster()
+    local best, bestTime = nil, -1
+    for name, data in pairs(PSKClient.SeenMasters) do
+        if data.lastUpdated > bestTime then
+            best = name
+            bestTime = data.lastUpdated
+			
+			-- print("Best: " .. best .. ".  BestTime: " .. bestTime)
+        end
+    end
+    return best
+end
 
 local ackFrame = CreateFrame("Frame")
 ackFrame:RegisterEvent("CHAT_MSG_ADDON")
 
 ackFrame:SetScript("OnEvent", function(_, _, prefix, message, channel, sender)
-    if prefix == "PSK_SYNC_PING" and message == "HELLO" then
-        C_ChatInfo.SendAddonMessage("PSK_SYNC_ACK", clientName, "WHISPER", sender)
-		PSKClient.Connected = true
-		PSKClient.LootMasterName = sender
-			
-        print("[PSK Client] Responded to master at:", sender)
+    if prefix == "PSK_SYNC_PING" then
+        local lastUpdated = tonumber(string.match(message, "^HELLO::(%d+)$"))
+
+		if lastUpdated then
+			-- Normal case: store and evaluate as usual
+			PSKClient.SeenMasters[sender] = {
+				lastUpdated = lastUpdated,
+				lastSeen = GetTime()
+			}
+
+		elseif not PSKClient.SeenMasters[sender] then
+			-- First time we've ever heard from this sender, assume version 0
+			PSKClient.SeenMasters[sender] = {
+				lastUpdated = 0,
+				lastSeen = GetTime()
+			}
+
+			-- print("[PSK Client] No list version provided by", sender, "- assuming 0")
+		else
+			-- Already known, just refresh lastSeen
+			PSKClient.SeenMasters[sender].lastSeen = GetTime()
+		end
+
+		-- Reevaluate the best master regardless
+		local best = GetBestMaster()
+
+		if best == sender and PSKClient.LootMasterName ~= sender then
+			C_ChatInfo.SendAddonMessage("PSK_SYNC_ACK", clientName, "WHISPER", sender)
+			PSKClient.Connected = true
+			PSKClient.LootMasterName = sender
+
+			-- print("[PSK Client] Acknowledged best master:", sender)
+		end
+
     end
 end)
 
+-- Cleanup stale masters and re-evaluate best one
+C_Timer.NewTicker(30, function()
+    local now = GetTime()
+    local changed = false
 
+    for name, data in pairs(PSKClient.SeenMasters) do
+        if now - data.lastSeen > MASTER_TIMEOUT then
+            -- print("[PSK Client] Removing inactive master:", name)
+            PSKClient.SeenMasters[name] = nil
+            changed = true
+        end
+    end
+
+    if changed then
+        local best = GetBestMaster()
+
+        if best and best ~= PSKClient.LootMasterName then
+            -- print("[PSK Client] Switched to new best master:", best)
+            C_ChatInfo.SendAddonMessage("PSK_SYNC_ACK", clientName, "WHISPER", best)
+            PSKClient.Connected = true
+            PSKClient.LootMasterName = best
+        elseif not best then
+            -- print("[PSK Client] No active loot master found.")
+            PSKClient.Connected = false
+            PSKClient.LootMasterName = nil
+        end
+    end
+end)
